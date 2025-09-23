@@ -1,0 +1,153 @@
+<?php
+// --- Datenbankverbindung ---
+define('DB_HOST', 'database-5018337040.webspace-host.com');
+define('DB_USER', 'dbu5117541');
+define('DB_PASS', 'Delta1979Dromeda');
+define('DB_NAME', 'dbs14522548');
+
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+$conn->set_charset('utf8mb4');
+
+// --- Event-ID auslesen ---
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+if ($id <= 0) {
+    echo "<p>Kein gültiges Event gewählt.</p>";
+    exit;
+}
+
+$res = $conn->query("SELECT * FROM Events WHERE id=$id LIMIT 1");
+$event = $res->fetch_assoc();
+if (!$event) {
+    echo "<p>Event nicht gefunden.</p>";
+    exit;
+}
+
+function formatDate($d) {
+    if (!$d) return '';
+    $d = substr($d, 0, 10);
+    [$y, $m, $dt] = explode('-', $d);
+    return "$dt.$m.$y";
+}
+?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title><?= htmlspecialchars($event['title']) ?> – Off-Space Köln</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; max-width: 700px; margin: auto; padding: 2rem;}
+    .event-detail { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px #0001; padding: 2rem; }
+    img { max-width: 100%; border-radius: 8px; margin-bottom: 1.2rem; }
+    .meta { color: #555; margin-bottom: 1rem; }
+    .tag { background: #eee; border-radius: 4px; padding: 2px 8px; margin-right: 8px; font-size: 0.97em; }
+    .kvb-kreis { display:inline-block; width:22px; height:22px; border-radius:50%; background:#ddd; color:#222; text-align:center; line-height:22px; margin-right:5px; font-size:0.93em; font-weight:bold;}
+    .back { margin-bottom: 2rem; display: inline-block;}
+    .section { margin-bottom: 1.5rem; }
+    .teilen-link { display: inline-block; background: #e7e7f7; color: #222; padding: 6px 16px; border-radius: 18px; text-decoration: none; margin-top: 1.5rem; font-weight: bold;}
+    .teilen-link:hover { background: #d2d2f0; color: #000;}
+  </style>
+</head>
+<body>
+<a href="index.php" class="back">⬅️ Zurück zur Übersicht</a>
+<div class="event-detail">
+  <h1><?= htmlspecialchars($event['title']) ?></h1>
+  <?php if (!empty($event['thumbnail'])): ?>
+    <img src="<?= htmlspecialchars($event['thumbnail']) ?>" alt="<?= htmlspecialchars($event['alt_img'] ?: 'Event-Bild') ?>">
+  <?php elseif (!empty($event['image_url'])): ?>
+    <img src="<?= htmlspecialchars($event['image_url']) ?>" alt="<?= htmlspecialchars($event['alt_img'] ?: 'Event-Bild') ?>">
+  <?php elseif (!empty($event['image_path'])): ?>
+    <img src="<?= htmlspecialchars($event['image_path']) ?>" alt="<?= htmlspecialchars($event['alt_img'] ?: 'Event-Bild') ?>">
+  <?php endif; ?>
+
+  <div class="meta">
+    <span class="tag"><?= formatDate($event['date_from']) ?><?= ($event['date_to'] && $event['date_to'] != $event['date_from']) ? " – " . formatDate($event['date_to']) : "" ?></span>
+    <?php if (!empty($event['venue'])): ?>
+      <span class="tag"><?= htmlspecialchars($event['venue']) ?></span>
+    <?php elseif (!empty($event['location'])): ?>
+      <span class="tag"><?= htmlspecialchars($event['location']) ?></span>
+    <?php endif; ?>
+    <?php if (!empty($event['artspace'])): ?>
+      <span class="tag"><?= htmlspecialchars($event['artspace']) ?></span>
+    <?php endif; ?>
+    <?php if (!empty($event['art_type'])): ?>
+      <span class="tag"><?= htmlspecialchars($event['art_type']) ?></span>
+    <?php endif; ?>
+    <?php if (!empty($event['is_free'])): ?>
+      <span class="tag">🆓 Eintritt frei</span>
+    <?php endif; ?>
+    <?php if (!empty($event['is_accessible'])): ?>
+      <span class="tag">♿ Barrierefrei</span>
+    <?php endif; ?>
+    <?php if (!empty($event['has_vernissage']) && !empty($event['vernissage_date'])): ?>
+      <span class="tag">🍸 Vernissage: <?= formatDate($event['vernissage_date']) ?><?= !empty($event['vernissage_time']) ? (" um " . htmlspecialchars(substr($event['vernissage_time'],0,5))) : "" ?></span>
+    <?php endif; ?>
+  </div>
+
+  <?php if (!empty($event['artist'])): ?>
+    <div class="section"><strong>Künstler: </strong><?= htmlspecialchars($event['artist']) ?></div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['description'])): ?>
+    <div class="section"><?= nl2br(htmlspecialchars($event['description'])) ?></div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['opening_hours'])): ?>
+    <div class="section"><strong>Öffnungszeiten:</strong><br><?= nl2br(htmlspecialchars($event['opening_hours'])) ?></div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['address']) || !empty($event['district'])): ?>
+    <div class="section"><strong>Adresse:</strong><br>
+      <?= htmlspecialchars($event['address']) ?>
+      <?php if (!empty($event['district'])): ?>, <?= htmlspecialchars($event['district']) ?><?php endif; ?>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['haltestellen'])): ?>
+    <div class="section"><strong>Haltestelle:</strong> <?= htmlspecialchars($event['haltestellen']) ?></div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['kvb_lines'])): ?>
+    <div class="section"><strong>KVB-Linien:</strong>
+      <?php
+      $kvbColors = [
+        '1'=>'#E01E25','3'=>'#F499BD','4'=>'#ED75A8','5'=>'#A69DC8',
+        '7'=>'#F08D52','9'=>'#F09186','12'=>'#99C01E','13'=>'#AA8567',
+        '14'=>'#FEAB02','15'=>'#97A8D6','16'=>'#3C8BD6','17'=>'#7F45C0',
+        '18'=>'#49B2CA','19'=>'#D3756A','28'=>'#2A5D92'
+      ];
+      $lines = is_array($event['kvb_lines']) ? $event['kvb_lines'] : explode(',',$event['kvb_lines']);
+      foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line)
+          echo "<span class='kvb-kreis' style='background:".($kvbColors[$line]??'#bbb')."'>$line</span>";
+      }
+      ?>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['image_credit'])): ?>
+    <div style="font-size:0.92em;color:#666;margin-bottom:1em;">Bildnachweis: <?= htmlspecialchars($event['image_credit']) ?></div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['artist_url'])): ?>
+    <div class="section"><a href="<?= htmlspecialchars($event['artist_url']) ?>" target="_blank">Artist-Link</a></div>
+  <?php endif; ?>
+  <?php if (!empty($event['website_url'])): ?>
+    <div class="section"><a href="<?= htmlspecialchars($event['website_url']) ?>" target="_blank">Website</a></div>
+  <?php endif; ?>
+  <?php if (!empty($event['instagram_url'])): ?>
+    <div class="section"><a href="<?= htmlspecialchars($event['instagram_url']) ?>" target="_blank">Instagram</a></div>
+  <?php endif; ?>
+
+  <?php if (!empty($event['share_link'])): ?>
+    <div class="section">
+      <a href="<?= htmlspecialchars($event['share_link']) ?>" target="_blank" rel="noopener" class="teilen-link">
+        &#128279; Event teilen
+      </a>
+    </div>
+  <?php endif; ?>
+
+</div>
+</body>
+</html>
